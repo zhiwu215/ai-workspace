@@ -21,7 +21,7 @@ ai-workspace\
 
 **[`project-learning-dev-evolution.md`](./instructions/project-learning-dev-evolution.md)**
 - **适用场景**：学习项目时使用
-- **核心作用**：站在**“从零开始的开发者”**视角，深入理解代码
+- **核心作用**：站在**从零开始的开发者**视角，深入理解代码
 
 ---
 
