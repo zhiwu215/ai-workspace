@@ -268,7 +268,7 @@
 
 5. **入口引入与组件添加**:
    - **入口引入**: 确认 `src\renderer\src\main.tsx` (或 `main.jsx`) 中已引入 `import './assets/globals.css'`。
-   - **添加组件**: 执行对应包管理器的 shadcn add 指令（例如 `npx shadcn@latest add button` / `pnpm dlx shadcn@latest add button`），组件将自动生成在 `src/renderer/src/components/ui/` 目录下。
+   - **添加组件（用户手动执行，Agent 不得运行）**: 搭建阶段 **不添加任何组件**。组件由用户在项目完成后手动执行 shadcn add 指令添加（例如 `npx shadcn@latest add button` / `pnpm dlx shadcn@latest add button`），组件将生成在 `src/renderer/src/components/ui/` 目录下。
 
 ---
 

@@ -8,24 +8,48 @@ disable-model-invocation: true
 
 引导用户交互式创建 Electron 项目，并在初始化后执行代码清理与扩展套件（CSS框架/UI组件库）接入。
 
+## 总原则
+
+- **严格按本流程与 references 中的命令执行，禁止探查式命令**（如 `--help` 探测、`WebFetch`、反复 `install`、`tasklist` 查进程等）。
+- **所有需要用户选择的项，都必须由用户决定，禁止用默认值/硬编码替用户决定。**（基础选项通过 `AskUserQuestion` 询问；脚手架交互题由用户手动执行时选择。）
+- **搭建阶段不添加任何 UI 组件**，组件由用户在项目完成后手动添加。
+
 ## 交互与执行流程
 
-### 步骤 1: 选择包管理器与项目框架
-1. **询问包管理器**：向用户询问希望使用哪个包管理器（`npm` / `pnpm` / `yarn`）。
-2. **询问项目框架**：读取 [`references/frameworks.md`](references/frameworks.md) 中定义的**受支持框架列表**，请用户选择项目框架（例如：`electron-vite` / `electron-forge`）。
-   - **严格限制**：框架选项仅能提供 `references/frameworks.md` 中预设的框架。若选择未开放框架（如 `electron-forge`），明确提示暂未支持。
+### 步骤 1: 一次性问清基础选项
+通过 `AskUserQuestion` 一次性询问以下两项（其余选项由用户在执行脚手架命令时交互选择）：
+1. **包管理器**：`npm` / `pnpm` / `yarn`。
+2. **项目框架**：读取 [`references/frameworks.md`](references/frameworks.md) 中的受支持框架列表（`electron-vite` / `electron-forge`）。
+   - **严格限制**：仅能提供预设框架；选择未开放框架（如 `electron-forge`）时明确提示暂未支持。
 
-### 步骤 2: 初始化脚手架
-根据用户选定的包管理器与框架，运行 `references/frameworks.md` 中对应的官方构建指令（例如 `pnpm create @quick-start/electron@latest`）。
+### 步骤 2: 生成脚手架命令并交由用户手动执行
+1. 依据步骤 1 选择的包管理器，参照 [`references/frameworks.md`](references/frameworks.md) 中的「脚手架手动执行命令」章节，给出对应的 `create` 命令（**不加 `--template`、不传管道**）：
+   - **npm**：`npm create @quick-start/electron@latest`
+   - **pnpm**：`pnpm create @quick-start/electron@latest`
+   - **yarn**：`yarn create @quick-start/electron@latest`
+2. **仅输出命令本身**，提示用户在**当前工作目录**下自行运行该命令即可，**不得罗列交互题顺序**（脚手架提问由用户运行时自行完成）。
+3. 脚手架为交互式 TUI（`prompts` 库），无法通过管道可靠非交互驱动，**必须由用户手动执行**。等待用户确认完成后再继续（措辞中性，不指定用户必须回复特定几个字）。
 
-### 步骤 3: 脚手架初始阶段运行验证 (Gate Check)
-构建完成后，在执行任何代码修改或文件清理之前，**首先运行开发服务器进行验证**：
-1. 运行选定包管理器的开发指令（如 `npm run dev` / `pnpm dev` / `yarn dev`）。
-2. 校验初始脚手架能否正常编译启动并打开应用窗口。
-3. **完成条件**：初始项目正常运行无报错。验证成功后结束临时测试服务，进入步骤 4。若启动报致命错误，立即暂停并提示用户排查，禁止直接清理文件。
+### 步骤 3: 探测项目与技术栈并安装依赖
+用户回复后，Agent 自动执行：
+1. 定位当前目录下新生成的 Electron 项目目录（若无法唯一确定，询问用户项目名）。
+2. 读取项目 `package.json` 与目录结构，识别前端框架（`React` / `Vue` / `Vanilla`）与语言（`TypeScript` / `JavaScript`），用于后续清理与 UI 库询问。
+3. 在项目目录内执行 `<pm> install`（脚手架仅生成文件，不自动安装依赖）。
 
-### 步骤 4: 自动清理冗余文件
-初始阶段运行验证通过后，Agent **自动执行代码清理**：
+### 步骤 4: 处理 npm v12 脚本拦截（已知坑）
+> npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续 `npm run dev` 报错。
+
+1. `npm install` 后若输出含 `install-scripts blocked` 且涉及 `electron`，按 [`references/frameworks.md`](references/frameworks.md) 的「已知问题」章节执行：
+   ```bash
+   npm install-scripts approve electron esbuild electron-winstaller
+   rm -r node_modules
+   rm package-lock.json
+   npm install
+   ```
+2. 若重新 `npm install` 后仍输出 `install-scripts blocked` 等错误，立即暂停并提示用户排查，禁止继续清理。
+
+### 步骤 5: 自动清理冗余文件
+Agent **自动执行代码清理**：
 1. 参照 `references/frameworks.md` 中的清理规则，彻底清空 `src\renderer\src\assets\` 目录（删除 `base.css`、`main.css`、`electron.svg`、`wavy-lines.svg` 4个固定文件）。
 2. 删除 `src\renderer\src\components\` 下的示例演示组件（如 `Versions.tsx` / `Versions.vue`）。
 3. 清理主进程 `src\main\index.ts` 中的冗余 IPC 测试代码（如 `ipcMain.on('ping', ...)`）。
@@ -33,22 +57,24 @@ disable-model-invocation: true
 5. 重置主渲染入口文件（如 `App.tsx` 或 `App.vue`）为完全空白的纯空壳结构（无任何标题与占位文本）。
 6. **完成条件**：项目代码库只保留最基础干净的入口与空壳组件。
 
-### 步骤 5: 询问 CSS 样式工具 / 原子化 CSS 框架
-1. 向用户发起询问：“请选择需要集成的 **CSS 样式工具 / 原子化 CSS 框架**”（例如：`Tailwind CSS`、`UnoCSS`、`无（不添加 CSS 框架）`）。
-2. **严格限制**：只能提供 [`references/styling-and-ui.md`](references/styling-and-ui.md) 第一部分中写入白名单的 CSS 工具选项。
+### 步骤 6: 询问 CSS 样式工具 / 原子化 CSS 框架
+1. 向用户发起询问：“请选择需要集成的 **CSS 样式工具 / 原子化 CSS 框架**”。
+2. **严格限制**：只能提供 [`references/styling-and-ui.md`](references/styling-and-ui.md) 第一部分中写入白名单的 CSS 工具选项（`Tailwind CSS`、`无`）。
 
-### 步骤 6: 根据前端框架 (React / Vue) 针对性询问 UI 组件库
-1. Agent 识别步骤 2 中用户构建的项目前端技术栈（`React` 或 `Vue`）。
+### 步骤 7: 根据前端框架针对性询问 UI 组件库
+1. Agent 识别步骤 3 中探测到的前端技术栈（`React` / `Vue` / `Vanilla`）。
 2. 查阅 [`references/styling-and-ui.md`](references/styling-and-ui.md) 第二部分中**与该前端框架匹配的兼容白名单**，向用户发起针对性询问：
-   - **React 项目**：仅可提供适用于 React 的组件库选项（如 `shadcn/ui`、`无`）。*（严禁提供 Element Plus 等 Vue 专属库）*
-   - **Vue 项目**：仅可提供适用于 Vue 的组件库选项（如 `Element Plus`、`无`）。*（严禁提供 shadcn/ui React 原生版）*
+   - **React 项目**：仅可提供适用于 React 的组件库选项（如 `shadcn/ui`、`无`）。
+   - **Vue / Vanilla 项目**：当前技术栈暂未开启 UI 组件库支持，仅提供 `无` 或直接跳过。
 3. **严格限制**：选项必须严格基于白名单且与选定前端框架兼容，绝对禁止推荐未写入白名单的内容。
 
-### 步骤 7: 执行配置与代码集成
-1. 根据用户在步骤 5、6 中选定的 CSS 工具和 UI 组件库，读取 [`references/styling-and-ui.md`](references/styling-and-ui.md) 中对应的配置指导。
-2. 配合步骤 1 中选择的包管理器（`npm` / `yarn` / `pnpm`），依次执行依赖安装、配置文件创建/修改以及全局样式引入。
-3. **完成条件**：所选组件库/样式库的依赖全部安装完成，配置文件与代码修改无语法或类型错误。
+### 步骤 8: 执行配置与代码集成
+1. 根据用户在步骤 6、7 中选定的 CSS 工具和 UI 组件库，读取 [`references/styling-and-ui.md`](references/styling-and-ui.md) 中对应的配置指导。
+2. 配合步骤 1 中选择的包管理器，依次执行依赖安装、配置文件创建/修改以及全局样式引入。
+3. **不添加任何 UI 组件**：`shadcn add` 等组件添加命令由用户在项目搭建完成后手动执行，Agent 不得运行。
+4. **完成条件**：所选组件库/样式库的依赖全部安装完成，配置文件与代码修改到位。
 
-### 步骤 8: 最终验证与交付总结
-1. 检查最终 `package.json` 中的 `scripts` 命令。
-2. 向用户汇报搭建与集成完成结果，并告知启动开发服务器命令（如 `pnpm dev` / `yarn dev` / `npm run dev`）。
+### 步骤 9: 交付总结
+1. 向用户汇报搭建与集成完成结果，告知用户现在可以运行。
+2. 告知用户启动开发服务器命令（`npm run dev` / `pnpm dev` / `yarn dev`），由用户运行确认。
+3. **总结中不要提及组件添加命令**（如 `shadcn add`）；组件由用户后续自行添加。

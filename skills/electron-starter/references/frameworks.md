@@ -12,15 +12,33 @@ Agent 向用户询问时，**只允许**提供以下固定选项：
 
 ---
 
-## 1. electron-vite
+## 脚手架手动执行命令
 
-### 构建指令
+`<pm> create @quick-start/electron@latest` 为**交互式 TUI 命令**（基于 `prompts` 库），无法通过管道可靠非交互驱动，**必须由用户手动执行**；脚手架提问由用户运行时自行完成，**Agent 不得向用户罗列交互题顺序**。
 
+### 手动执行命令
 - **npm**: `npm create @quick-start/electron@latest`
 - **pnpm**: `pnpm create @quick-start/electron@latest`
 - **yarn**: `yarn create @quick-start/electron@latest`
 
+> 注：脚手架仅生成文件，不自动安装依赖；用户执行完成后，由 Agent 探测项目目录与技术栈，再执行 `<pm> install`。
+
 ---
+
+## 已知问题：npm v12 严格脚本拦截
+
+npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续运行报错。处理方式：
+
+```bash
+npm install-scripts approve electron esbuild electron-winstaller
+rm -r node_modules
+rm package-lock.json
+npm install
+```
+
+---
+
+## 1. electron-vite
 
 ### 脚手架清理规则（构建完成后自动执行）
 
@@ -43,7 +61,7 @@ Agent 向用户询问时，**只允许**提供以下固定选项：
    - **`App.tsx` / `App.jsx`**:
      重置为空白空壳代码（不包含任何标题与占位文字）：
      ```tsx
-     function App(): JSX.Element {
+     function App(): React.JSX.Element {
        return (
          <div></div>
        )
