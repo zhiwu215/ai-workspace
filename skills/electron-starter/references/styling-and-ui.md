@@ -25,30 +25,14 @@
    - **yarn**: `yarn add tailwindcss @tailwindcss/vite`
 
 2. **配置 `electron.vite.config.ts` (或 `electron.vite.config.js`)**:
-   在渲染进程 (`renderer`) 对象的 `plugins` 列表中引入并添加 `tailwindcss()` 插件：
-   ```ts
-   import { resolve } from 'path'
-   import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
-   import react from '@vitejs/plugin-react' // 若为 Vue 项目则为 import vue from '@vitejs/plugin-vue'
-   import tailwindcss from '@tailwindcss/vite'
-
-   export default defineConfig({
-     main: {
-       plugins: [externalizeDepsPlugin()]
-     },
-     preload: {
-       plugins: [externalizeDepsPlugin()]
-     },
+   - 顶部导入插件：`import tailwindcss from '@tailwindcss/vite'`
+   - 在 `renderer` 对象的 `plugins` 列表中追加 `tailwindcss()`：
+     ```ts
      renderer: {
-       resolve: {
-         alias: {
-           '@renderer': resolve('src/renderer/src')
-         }
-       },
-       plugins: [tailwindcss(), react()] // 在此处添加 tailwindcss()
+       // ...
+       plugins: [react(), tailwindcss()] // Vue 项目为 [vue(), tailwindcss()]
      }
-   })
-   ```
+     ```
 
 3. **创建全局样式文件**:
    在渲染层新建 `src\renderer\src\assets\globals.css` 并添加 Tailwind 导入指令：
@@ -220,8 +204,8 @@
 3. **创建工具函数 `src\renderer\src\lib\utils.ts` (或 `utils.js`)**:
    - **TS 版本 (`utils.ts`)**:
      ```ts
-     import { clsx, type ClassValue } from "clsx"
-     import { twMerge } from "tailwind-merge"
+     import { clsx, type ClassValue } from 'clsx'
+     import { twMerge } from 'tailwind-merge'
 
      export function cn(...inputs: ClassValue[]) {
        return twMerge(clsx(inputs))
@@ -229,8 +213,8 @@
      ```
    - **JS 版本 (`utils.js`)**:
      ```js
-     import { clsx } from "clsx"
-     import { twMerge } from "tailwind-merge"
+     import { clsx } from 'clsx'
+     import { twMerge } from 'tailwind-merge'
 
      export function cn(...inputs) {
        return twMerge(clsx(inputs))
