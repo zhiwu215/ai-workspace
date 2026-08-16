@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## 总原则
 
-- **严格按本流程与 references 中的命令执行，禁止探查式命令**（如 `--help` 探测、`WebFetch`、反复 `install`、`tasklist` 查进程等）。
+- **严格按本流程与 references 中的命令执行，禁止探查与多余验证命令**（如 `--help` 探测、`WebFetch`、反复 `install`、`tasklist` 查进程等；**集成完成后严禁执行 `typecheck`、`build`、`test`、`lint` 等任何验证性命令**）。
 - **所有需要用户选择的项，都必须由用户决定，禁止用默认值/硬编码替用户决定。**（基础选项通过 `AskUserQuestion` 询问；脚手架交互题由用户手动执行时选择。）
 - **搭建阶段不添加任何 UI 组件**，组件由用户在项目完成后手动添加。
 
@@ -39,13 +39,9 @@ disable-model-invocation: true
 ### 步骤 4: 处理 npm v12 脚本拦截（已知坑）
 > npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续 `npm run dev` 报错。
 
-1. `npm install` 后若输出含 `install-scripts blocked` 且涉及 `electron`，按 [`references/frameworks.md`](references/frameworks.md) 的「已知问题」章节执行：
-   ```bash
-   npm install-scripts approve electron esbuild electron-winstaller
-   rm -r node_modules
-   rm package-lock.json
-   npm install
-   ```
+1. `npm install` 后若输出含 `install-scripts blocked` 且涉及 `electron`，按 [`references/frameworks.md`](references/frameworks.md) 的「已知问题」章节执行批准并重装依赖：
+   - 批准脚本：`npm install-scripts approve electron esbuild electron-winstaller`
+   - 清理重装：删除 `node_modules` 与 `package-lock.json` 后重新执行 `npm install`。
 2. 若重新 `npm install` 后仍输出 `install-scripts blocked` 等错误，立即暂停并提示用户排查，禁止继续清理。
 
 ### 步骤 5: 自动清理冗余文件
@@ -57,24 +53,24 @@ Agent **自动执行代码清理**：
 5. 重置主渲染入口文件（如 `App.tsx` 或 `App.vue`）为完全空白的纯空壳结构（无任何标题与占位文本）。
 6. **完成条件**：项目代码库只保留最基础干净的入口与空壳组件。
 
-### 步骤 6: 询问 CSS 样式工具 / 原子化 CSS 框架
-1. 向用户发起询问：“请选择需要集成的 **CSS 样式工具 / 原子化 CSS 框架**”。
-2. **严格限制**：只能提供 [`references/styling-and-ui.md`](references/styling-and-ui.md) 第一部分中写入白名单的 CSS 工具选项（`Tailwind CSS`、`无`）。
+### 步骤 6: 询问 CSS 样式工具与 UI 组件库
+1. Agent 依据步骤 3 识别的前端技术栈（`React` / `Vue` / `Vanilla`），查阅 [`references/styling-and-ui.md`](references/styling-and-ui.md) 的兼容白名单，通过 `AskUserQuestion` 向用户发起询问：
+   - **React 项目**（可一次性询问两项）：
+     - **CSS 样式工具**：`Tailwind CSS` / `无`
+     - **UI 组件库**：`shadcn/ui` / `无`
+   - **Vue / Vanilla 项目**：
+     - **CSS 样式工具**：`Tailwind CSS` / `无`
+     - **UI 组件库**：提示“当前技术栈暂未开启 UI 组件库支持”，直接跳过或仅提供 `无`。
+2. **严格限制**：选项必须严格基于白名单且与选定前端框架兼容，绝对禁止推荐未写入白名单的内容。
 
-### 步骤 7: 根据前端框架针对性询问 UI 组件库
-1. Agent 识别步骤 3 中探测到的前端技术栈（`React` / `Vue` / `Vanilla`）。
-2. 查阅 [`references/styling-and-ui.md`](references/styling-and-ui.md) 第二部分中**与该前端框架匹配的兼容白名单**，向用户发起针对性询问：
-   - **React 项目**：仅可提供适用于 React 的组件库选项（如 `shadcn/ui`、`无`）。
-   - **Vue / Vanilla 项目**：当前技术栈暂未开启 UI 组件库支持，仅提供 `无` 或直接跳过。
-3. **严格限制**：选项必须严格基于白名单且与选定前端框架兼容，绝对禁止推荐未写入白名单的内容。
-
-### 步骤 8: 执行配置与代码集成
-1. 根据用户在步骤 6、7 中选定的 CSS 工具和 UI 组件库，读取 [`references/styling-and-ui.md`](references/styling-and-ui.md) 中对应的配置指导。
-2. 配合步骤 1 中选择的包管理器，依次执行依赖安装、配置文件创建/修改以及全局样式引入。
+### 步骤 7: 执行配置与代码集成
+1. 根据用户选定的 CSS 工具和 UI 组件库，读取 [`references/styling-and-ui.md`](references/styling-and-ui.md) 中对应的配置指导。
+2. 配合选定的包管理器，依次执行依赖安装、配置文件创建/修改以及全局样式引入。
 3. **不添加任何 UI 组件**：`shadcn add` 等组件添加命令由用户在项目搭建完成后手动执行，Agent 不得运行。
-4. **完成条件**：所选组件库/样式库的依赖全部安装完成，配置文件与代码修改到位。
+4. **严禁执行校验命令**：脚手架与扩展套件配置为确定性流程，配置与依赖就绪后，**严禁执行 `typecheck`、`build`、`test`、`lint` 等任何验证命令**，直接进入步骤 8 进行交付总结。
+5. **完成条件**：所选组件库/样式库的依赖全部安装完成，配置文件与代码修改到位。
 
-### 步骤 9: 交付总结
+### 步骤 8: 交付总结
 1. 向用户汇报搭建与集成完成结果，告知用户现在可以运行。
 2. 告知用户启动开发服务器命令（`npm run dev` / `pnpm dev` / `yarn dev`），由用户运行确认。
 3. **总结中不要提及组件添加命令**（如 `shadcn add`）；组件由用户后续自行添加。
