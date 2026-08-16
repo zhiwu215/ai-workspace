@@ -21,20 +21,26 @@ Agent 向用户询问时，**只允许**提供以下固定选项：
 - **pnpm**: `pnpm create @quick-start/electron@latest`
 - **yarn**: `yarn create @quick-start/electron@latest`
 
-> 注：脚手架仅生成文件，不自动安装依赖；用户执行完成后，由 Agent 探测项目目录与技术栈，再执行 `<pm> install`。
+> 注：脚手架仅生成文件，不自动安装依赖。提示用户创建完成后**切勿手动运行 install 安装依赖**（后续需由 Agent 先配置 `package.json` 中的 `allowScripts` 脚本白名单后再统一执行 `<pm> install`）。
 
 ---
 
-## 已知问题：npm v12 严格脚本拦截
+## 已知问题与配置：npm v12 脚本白名单预设
 
-npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续运行报错。处理方式：
+npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续运行报错。
 
-```bash
-npm install-scripts approve electron esbuild electron-winstaller
-rm -r node_modules
-rm package-lock.json
-npm install
+**处理方式**：
+在执行依赖安装（`<pm> install`）**之前**，在项目 `package.json` 的末尾添加 `"allowScripts"` 配置：
+
+```json
+"allowScripts": {
+  "electron": true,
+  "esbuild": true,
+  "electron-winstaller": true
+}
 ```
+
+配置完成后直接执行 `<pm> install` 即可正常安装依赖并自动放行 electron 内核下载脚本。
 
 ---
 

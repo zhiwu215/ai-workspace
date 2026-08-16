@@ -27,22 +27,26 @@ disable-model-invocation: true
    - **npm**：`npm create @quick-start/electron@latest`
    - **pnpm**：`pnpm create @quick-start/electron@latest`
    - **yarn**：`yarn create @quick-start/electron@latest`
-2. **仅输出命令本身**，提示用户在**当前工作目录**下自行运行该命令即可，**不得罗列交互题顺序**（脚手架提问由用户运行时自行完成）。
-3. 脚手架为交互式 TUI（`prompts` 库），无法通过管道可靠非交互驱动，**必须由用户手动执行**。等待用户确认完成后再继续（措辞中性，不指定用户必须回复特定几个字）。
+2. **仅输出命令本身**，提示用户在**当前工作目录**下自行运行该命令即可，并**明确提醒用户初始化完成后切勿手动安装依赖**（告知用户后续需由 Agent 自动配置 `package.json` 的 `allowScripts` 脚本放行白名单后再统一安装依赖），**不得罗列交互题顺序**（脚手架提问由用户运行时自行完成）。
+3. 脚手架为交互式 TUI（`prompts` 库），无法通过管道可靠非交互驱动，**必须由用户手动执行**。等待用户确认初始化完成后再继续（措辞中性，不指定用户必须回复特定几个字）。
 
-### 步骤 3: 探测项目与技术栈并安装依赖
+### 步骤 3: 探测项目、配置脚本白名单并安装依赖
 用户回复后，Agent 自动执行：
 1. 定位当前目录下新生成的 Electron 项目目录（若无法唯一确定，询问用户项目名）。
 2. 读取项目 `package.json` 与目录结构，识别前端框架（`React` / `Vue` / `Vanilla`）与语言（`TypeScript` / `JavaScript`），用于后续清理与 UI 库询问。
-3. 在项目目录内执行 `<pm> install`（脚手架仅生成文件，不自动安装依赖）。
+3. **配置脚本允许列表（防止 npm v12 等拦截 `electron` 内核下载脚本）**：
+   在项目 `package.json` 的末尾配置 `"allowScripts"`：
+   ```json
+   "allowScripts": {
+     "electron": true,
+     "esbuild": true,
+     "electron-winstaller": true
+   }
+   ```
+4. 在项目目录内执行 `<pm> install` 安装依赖（脚手架仅生成文件，不自动安装依赖）。
 
-### 步骤 4: 处理 npm v12 脚本拦截（已知坑）
-> npm v12 起默认开启 install-scripts 白名单，`electron` 的 postinstall（下载内核）会被拦截，导致后续 `npm run dev` 报错。
-
-1. `npm install` 后若输出含 `install-scripts blocked` 且涉及 `electron`，按 [`references/frameworks.md`](references/frameworks.md) 的「已知问题」章节执行批准并重装依赖：
-   - 批准脚本：`npm install-scripts approve electron esbuild electron-winstaller`
-   - 清理重装：删除 `node_modules` 与 `package-lock.json` 后重新执行 `npm install`。
-2. 若重新 `npm install` 后仍输出 `install-scripts blocked` 等错误，立即暂停并提示用户排查，禁止继续清理。
+### 步骤 4: 校验依赖安装结果
+1. 确认 `<pm> install` 执行无误。若安装依赖过程抛错或输出含 `install-scripts blocked` 等严重错误，立即暂停并提示用户排查，禁止继续清理。
 
 ### 步骤 5: 自动清理冗余文件
 Agent **自动执行代码清理**：
